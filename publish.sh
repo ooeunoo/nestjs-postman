@@ -15,9 +15,9 @@ npm publish
 echo "Published version $new_version"
 
 # Git에 변경사항 커밋 및 푸시
-# git add .
-# git commit -m "Bump version to $new_version"
-# git push origin main
-# git push --tags
+git add .
+git commit -m "Bump version to $new_version"
+git push origin main
+git push --tags
 
-# echo "Changes pushed to Git"
+echo "Changes pushed to Git"

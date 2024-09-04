@@ -1,15 +1,8 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  OnModuleInit,
-  Optional,
-} from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { DiscoveryService, MetadataScanner, Reflector } from "@nestjs/core";
 import axios, { AxiosError } from "axios";
 import { SYNC_WITH_POSTMAN_KEY } from "../decorators/sync-with-postman.decorator";
 import { PostmanConfig } from "../interfaces/postman-config.interface";
-import { POSTMAN_CONFIG } from "../nestjs-postman.module";
 
 @Injectable()
 export class PostmanSyncService implements OnModuleInit {
@@ -19,7 +12,7 @@ export class PostmanSyncService implements OnModuleInit {
     private readonly discoveryService: DiscoveryService,
     private readonly metadataScanner: MetadataScanner,
     private readonly reflector: Reflector,
-    @Optional() @Inject(POSTMAN_CONFIG) private readonly config?: PostmanConfig
+    @Inject("POSTMAN_CONFIG") private readonly config: PostmanConfig
   ) {}
 
   async onModuleInit() {
@@ -71,7 +64,7 @@ export class PostmanSyncService implements OnModuleInit {
   private async syncWithPostman(routes: any[]) {
     try {
       const response = await axios.get(
-        `https://api.getpostman.com/collections/${this.config.collectionId}`,
+        `https://api.getpostman.com/collections/${this.config.collectionName}`,
         {
           headers: {
             "X-Api-Key": this.config.apiKey,
@@ -83,7 +76,7 @@ export class PostmanSyncService implements OnModuleInit {
       const updatedItems = this.updateCollectionItems(collection.item, routes);
 
       await axios.put(
-        `https://api.getpostman.com/collections/${this.config.collectionId}`,
+        `https://api.getpostman.com/collections/${this.config.collectionName}`,
         {
           collection: {
             ...collection,

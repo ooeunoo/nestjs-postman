@@ -1,5 +1,5 @@
 export interface PostmanConfig {
   apiKey: string;
-  collectionId: string;
+  collectionName: string;
   baseUrl?: string;
 }

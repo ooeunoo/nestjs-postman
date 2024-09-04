@@ -3,8 +3,6 @@ import { DiscoveryModule } from "@nestjs/core";
 import { PostmanConfig } from "./interfaces/postman-config.interface";
 import { PostmanSyncService } from "./services/postman-sync.service";
 
-export const POSTMAN_CONFIG = "POSTMAN_CONFIG";
-
 @Global()
 @Module({})
 export class NestjsPostmanModule {
@@ -14,12 +12,32 @@ export class NestjsPostmanModule {
       imports: [DiscoveryModule],
       providers: [
         {
-          provide: POSTMAN_CONFIG,
+          provide: "POSTMAN_CONFIG",
           useValue: config,
         },
         PostmanSyncService,
       ],
-      exports: [PostmanSyncService, POSTMAN_CONFIG],
+      exports: [PostmanSyncService],
+    };
+  }
+
+  static forRootAsync(options: {
+    imports?: any[];
+    useFactory: (...args: any[]) => Promise<PostmanConfig> | PostmanConfig;
+    inject?: any[];
+  }): DynamicModule {
+    return {
+      module: NestjsPostmanModule,
+      imports: [...(options.imports || []), DiscoveryModule],
+      providers: [
+        {
+          provide: "POSTMAN_CONFIG",
+          useFactory: options.useFactory,
+          inject: options.inject || [],
+        },
+        PostmanSyncService,
+      ],
+      exports: [PostmanSyncService],
     };
   }
 }
