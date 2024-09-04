@@ -2,10 +2,9 @@
   "name": "nestjs-postman",
   "version": "1.0.2",
   "main": "dist/index.js",
-  "types": "index.d.ts",
+  "types": "dist/index.d.ts",
   "files": [
-    "dist",
-    "index.d.ts"
+    "dist"
   ],
   "scripts": {
     "build": "tsc",
