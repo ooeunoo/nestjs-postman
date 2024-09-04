@@ -18,7 +18,7 @@ export class NestjsPostmanModule {
         },
         PostmanSyncService,
       ],
-      exports: [PostmanSyncService],
+      exports: [PostmanSyncService, POSTMAN_CONFIG], // POSTMAN_CONFIG도 export
     };
   }
 }
