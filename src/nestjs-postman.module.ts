@@ -18,6 +18,7 @@ export class NestjsPostmanModule {
         },
         PostmanSyncService,
       ],
+      exports: [PostmanSyncService],
     };
   }
 }

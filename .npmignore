@@ -1,0 +1,9 @@
+src/
+tests/
+.gitignore
+.npmignore
+tsconfig.json
+publish.sh
+jest.config.js
+*.spec.ts
+*.test.ts
