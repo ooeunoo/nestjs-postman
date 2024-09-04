@@ -31,10 +31,8 @@ export class PostmanSyncService implements OnModuleInit {
       this.logger.error("Failed to sync routes with Postman", error);
     }
   }
-
   private async getControllerRoutes(): Promise<Record<string, any[]>> {
     const controllers = this.discoveryService.getControllers();
-    console.log(controllers);
     const controllerRoutes: Record<string, any[]> = {};
 
     for (const controller of controllers) {
@@ -45,10 +43,9 @@ export class PostmanSyncService implements OnModuleInit {
       const routes = this.scanControllerMethods(controller, basePath);
 
       if (routes.length > 0) {
-        controllerRoutes[controllerName] = routes;
+        controllerRoutes[basePath || controllerName] = routes;
       }
     }
-    console.log(controllerRoutes);
 
     return controllerRoutes;
   }
@@ -161,15 +158,15 @@ export class PostmanSyncService implements OnModuleInit {
   ): any[] {
     const updatedItems = [...existingItems];
 
-    for (const [controllerName, routes] of Object.entries(controllerRoutes)) {
+    for (const [folderName, routes] of Object.entries(controllerRoutes)) {
       let folderIndex = updatedItems.findIndex(
-        (item) => item.name === controllerName && item.item
+        (item) => item.name === folderName && item.item
       );
 
       if (folderIndex === -1) {
         // Create new folder for controller
         updatedItems.push({
-          name: controllerName,
+          name: folderName,
           item: [],
         });
         folderIndex = updatedItems.length - 1;
