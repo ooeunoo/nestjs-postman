@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  Optional,
+} from "@nestjs/common";
 import { DiscoveryService, MetadataScanner, Reflector } from "@nestjs/core";
 import axios, { AxiosError } from "axios";
 import { SYNC_WITH_POSTMAN_KEY } from "../decorators/sync-with-postman.decorator";
@@ -13,10 +19,15 @@ export class PostmanSyncService implements OnModuleInit {
     private readonly discoveryService: DiscoveryService,
     private readonly metadataScanner: MetadataScanner,
     private readonly reflector: Reflector,
-    @Inject(POSTMAN_CONFIG) private readonly config: PostmanConfig
+    @Optional() @Inject(POSTMAN_CONFIG) private readonly config?: PostmanConfig
   ) {}
 
   async onModuleInit() {
+    if (!this.config) {
+      console.warn("PostmanConfig is not provided. Skipping Postman sync.");
+      return;
+    }
+
     try {
       const controllers = this.discoveryService.getControllers();
       const routes = [];
