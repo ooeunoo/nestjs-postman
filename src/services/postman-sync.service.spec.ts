@@ -1,40 +1,104 @@
-import { Controller, Delete, Get, Post, Put } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query } from "@nestjs/common";
 import { DiscoveryModule } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
-import { SyncWithPostman } from "../decorators/sync-with-postman.decorator";
+import { PostmanSync } from "../decorators/sync-with-postman.decorator";
 import { PostmanSyncService } from "./postman-sync.service";
 
-// Mock Controller
-@Controller("users")
-@SyncWithPostman()
-class UserController {
-  @Get()
-  getUsers() {}
+import { Delete, Headers, Put } from "@nestjs/common";
 
-  @Post()
-  createUser() {}
+import {
+  IsEmail,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from "class-validator";
 
-  @Put(":id")
-  updateUser() {}
+export class CreateUserDto {
+  @IsString()
+  name: string;
 
-  @Delete(":id")
-  deleteUser() {}
+  @IsEmail()
+  email: string;
+
+  @IsNumber()
+  @Min(18)
+  @Max(100)
+  age: number;
 }
 
-@Controller("wallets")
-@SyncWithPostman()
-class WalletController {
+export class UpdateUserDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(18)
+  @Max(100)
+  age?: number;
+}
+
+export class UserQueryDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+}
+@Controller("users")
+@PostmanSync()
+export class UserController {
   @Get()
-  getUsers() {}
+  getUsers(
+    @Query() query: UserQueryDto,
+    @Headers("Authorization") auth: string
+  ) {
+    return { message: "Get all users", query };
+  }
 
   @Post()
-  createUser() {}
+  createUser(
+    @Body() userData: CreateUserDto,
+    @Headers("Content-Type") contentType: string
+  ) {
+    return { message: "User created", user: userData };
+  }
+
+  @Get(":id")
+  getUser(@Param("id") id: string, @Headers("Authorization") auth: string) {
+    return { message: "Get user", id };
+  }
 
   @Put(":id")
-  updateUser() {}
+  updateUser(@Param("id") id: string, @Body() updateData: UpdateUserDto) {
+    return { message: "User updated", id, updateData };
+  }
 
   @Delete(":id")
-  deleteUser() {}
+  deleteUser(@Param("id") id: string, @Headers("Authorization") auth: string) {
+    return { message: "User deleted", id };
+  }
+
+  @Post(":id/profile-picture")
+  uploadProfilePicture(@Param("id") id: string, @Body() file: any) {
+    return { message: "Profile picture uploaded", id };
+  }
+
+  @Get("search")
+  searchUsers(@Query("name") name: string, @Query("email") email: string) {
+    return { message: "Search users", name, email };
+  }
 }
 
 const apiKey =
@@ -47,7 +111,7 @@ describe("PostmanSyncService Integration", () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [DiscoveryModule],
-      controllers: [UserController, WalletController],
+      controllers: [UserController],
       providers: [
         PostmanSyncService,
         {
@@ -66,10 +130,5 @@ describe("PostmanSyncService Integration", () => {
   it("should sync mock controller routes with Postman collection", async () => {
     // Trigger the sync process
     await service.onModuleInit();
-
-    // Use the service to get the updated collection
-    const collection = await (service as any).getPostmanCollection(
-      collectionId
-    );
   });
 });

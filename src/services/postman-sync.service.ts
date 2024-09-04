@@ -1,4 +1,6 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { ROUTE_ARGS_METADATA } from "@nestjs/common/constants";
+import { RouteParamtypes } from "@nestjs/common/enums/route-paramtypes.enum";
 import { DiscoveryService, MetadataScanner, Reflector } from "@nestjs/core";
 import axios from "axios";
 import { SYNC_WITH_POSTMAN_KEY } from "../decorators/sync-with-postman.decorator";
@@ -31,6 +33,7 @@ export class PostmanSyncService implements OnModuleInit {
       this.logger.error("Failed to sync routes with Postman", error);
     }
   }
+
   private async getControllerRoutes(): Promise<Record<string, any[]>> {
     const controllers = this.discoveryService.getControllers();
     const controllerRoutes: Record<string, any[]> = {};
@@ -60,6 +63,7 @@ export class PostmanSyncService implements OnModuleInit {
   private getControllerBasePath(controller: any): string {
     return Reflect.getMetadata("path", controller.instance.constructor) || "";
   }
+
   private scanControllerMethods(controller: any, basePath: string): any[] {
     const routes = [];
     const instance = controller.instance;
@@ -71,6 +75,13 @@ export class PostmanSyncService implements OnModuleInit {
       (methodKey: string) => {
         const method = Reflect.getMetadata("method", instance[methodKey]);
         const path = Reflect.getMetadata("path", instance[methodKey]);
+        const routeArgs =
+          Reflect.getMetadata(
+            ROUTE_ARGS_METADATA,
+            instance.constructor,
+            methodKey
+          ) || {};
+
         if (method !== undefined) {
           routes.push({
             method: this.getHttpMethod(method),
@@ -78,12 +89,44 @@ export class PostmanSyncService implements OnModuleInit {
               .replace(/\/+/g, "/")
               .replace(/\/$/, ""),
             name: methodKey,
+            params: this.extractParameters(routeArgs),
           });
         }
       }
     );
 
     return routes;
+  }
+
+  private extractParameters(routeArgs: Record<string, any>) {
+    const params = {
+      body: null,
+      query: [],
+      param: [],
+      headers: [],
+    };
+
+    for (const key in routeArgs) {
+      const { index, data, pipes } = routeArgs[key];
+      const [paramtype, paramIndex] = key.split(":").map(Number);
+
+      switch (paramtype) {
+        case RouteParamtypes.BODY:
+          params.body = { index, data, pipes };
+          break;
+        case RouteParamtypes.QUERY:
+          params.query.push({ index, data, pipes });
+          break;
+        case RouteParamtypes.PARAM:
+          params.param.push({ index, data, pipes });
+          break;
+        case RouteParamtypes.HEADERS:
+          params.headers.push({ index, data, pipes });
+          break;
+      }
+    }
+
+    return params;
   }
 
   private getHttpMethod(method: number): string {
@@ -106,7 +149,6 @@ export class PostmanSyncService implements OnModuleInit {
       const collection = await this.getPostmanCollection(
         this.config.collectionId
       );
-      console.log("herer: ", collection);
       this.logger.log("Retrieved collection details");
 
       const updatedItems = this.updateCollectionItems(
@@ -164,7 +206,6 @@ export class PostmanSyncService implements OnModuleInit {
       );
 
       if (folderIndex === -1) {
-        // Create new folder for controller
         updatedItems.push({
           name: folderName,
           item: [],
@@ -184,18 +225,15 @@ export class PostmanSyncService implements OnModuleInit {
         const newItem = this.createNewItem(route);
 
         if (existingItemIndex !== -1) {
-          // Update existing item
           folderItems[existingItemIndex] = {
             ...folderItems[existingItemIndex],
             ...newItem,
           };
         } else {
-          // Add new item
           folderItems.push(newItem);
         }
       });
 
-      // Remove items that are no longer in routes
       updatedItems[folderIndex].item = folderItems.filter((item) =>
         routes.some(
           (route) =>
@@ -209,21 +247,67 @@ export class PostmanSyncService implements OnModuleInit {
   }
 
   private createNewItem(route: any): any {
-    return {
+    const item: any = {
       name: `${route.method.toUpperCase()} ${route.path}`,
       request: {
         method: route.method.toUpperCase(),
-        header: [],
-        url: {
-          raw: `{{baseUrl}}${route.path}`,
-          host: ["{{baseUrl}}"],
-          path: route.path.split("/").filter(Boolean),
-        },
+        header: this.createHeaders(route.params.headers),
+        url: this.createUrl(route.path, route.params.param, route.params.query),
         description: `Auto-generated request for ${route.method.toUpperCase()} ${
           route.path
         }`,
       },
       response: [],
+    };
+
+    if (route.params.body) {
+      item.request.body = this.createBody(route.params.body);
+    }
+
+    return item;
+  }
+
+  private createHeaders(headers: any[]): any[] {
+    return headers.map((header) => ({
+      key: header.data,
+      value: `{{${header.data}}}`,
+      description: "",
+    }));
+  }
+
+  private createUrl(path: string, pathParams: any[], queryParams: any[]): any {
+    const url: any = {
+      raw: `{{baseUrl}}${path}`,
+      host: ["{{baseUrl}}"],
+      path: path.split("/").filter(Boolean),
+    };
+
+    if (pathParams.length > 0) {
+      url.variable = pathParams.map((param) => ({
+        key: param.data,
+        value: `{{${param.data}}}`,
+      }));
+    }
+
+    if (queryParams.length > 0) {
+      url.query = queryParams.map((param) => ({
+        key: param.data,
+        value: `{{${param.data}}}`,
+      }));
+    }
+
+    return url;
+  }
+
+  private createBody(body: any): any {
+    return {
+      mode: "raw",
+      raw: JSON.stringify({ example: "data" }, null, 2),
+      options: {
+        raw: {
+          language: "json",
+        },
+      },
     };
   }
 }
