@@ -1,148 +1,16 @@
-import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { ROUTE_ARGS_METADATA } from "@nestjs/common/constants";
-import { RouteParamtypes } from "@nestjs/common/enums/route-paramtypes.enum";
-import { DiscoveryService, MetadataScanner, Reflector } from "@nestjs/core";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import axios from "axios";
-import { SYNC_WITH_POSTMAN_KEY } from "../decorators/sync-with-postman.decorator";
 import { PostmanConfig } from "../interfaces/postman-config.interface";
 
 @Injectable()
-export class PostmanSyncService implements OnModuleInit {
+export class PostmanSyncService {
   private readonly logger = new Logger(PostmanSyncService.name);
 
   constructor(
-    private readonly discoveryService: DiscoveryService,
-    private readonly metadataScanner: MetadataScanner,
-    private readonly reflector: Reflector,
     @Inject("POSTMAN_CONFIG") private readonly config: PostmanConfig
   ) {}
 
-  async onModuleInit() {
-    if (!this.config) {
-      this.logger.warn("PostmanConfig is not provided. Skipping Postman sync.");
-      return;
-    }
-
-    try {
-      const controllerRoutes = await this.getControllerRoutes();
-      this.logger.log(
-        `Found ${Object.keys(controllerRoutes).length} controllers to sync`
-      );
-      await this.syncWithPostman(controllerRoutes);
-    } catch (error) {
-      this.logger.error("Failed to sync routes with Postman", error);
-    }
-  }
-
-  private async getControllerRoutes(): Promise<Record<string, any[]>> {
-    const controllers = this.discoveryService.getControllers();
-    const controllerRoutes: Record<string, any[]> = {};
-
-    for (const controller of controllers) {
-      if (!this.shouldSyncController(controller)) continue;
-
-      const controllerName = controller.instance.constructor.name;
-      const basePath = this.getControllerBasePath(controller);
-      const routes = this.scanControllerMethods(controller, basePath);
-
-      if (routes.length > 0) {
-        controllerRoutes[basePath || controllerName] = routes;
-      }
-    }
-
-    return controllerRoutes;
-  }
-
-  private shouldSyncController(controller: any): boolean {
-    return this.reflector.get(
-      SYNC_WITH_POSTMAN_KEY,
-      controller.instance.constructor
-    );
-  }
-
-  private getControllerBasePath(controller: any): string {
-    return Reflect.getMetadata("path", controller.instance.constructor) || "";
-  }
-
-  private scanControllerMethods(controller: any, basePath: string): any[] {
-    const routes = [];
-    const instance = controller.instance;
-    const prototype = Object.getPrototypeOf(instance);
-
-    this.metadataScanner.scanFromPrototype(
-      instance,
-      prototype,
-      (methodKey: string) => {
-        const method = Reflect.getMetadata("method", instance[methodKey]);
-        const path = Reflect.getMetadata("path", instance[methodKey]);
-        const routeArgs =
-          Reflect.getMetadata(
-            ROUTE_ARGS_METADATA,
-            instance.constructor,
-            methodKey
-          ) || {};
-
-        if (method !== undefined) {
-          routes.push({
-            method: this.getHttpMethod(method),
-            path: `/${basePath}/${path || ""}`
-              .replace(/\/+/g, "/")
-              .replace(/\/$/, ""),
-            name: methodKey,
-            params: this.extractParameters(routeArgs),
-          });
-        }
-      }
-    );
-
-    return routes;
-  }
-
-  private extractParameters(routeArgs: Record<string, any>) {
-    const params = {
-      body: null,
-      query: [],
-      param: [],
-      headers: [],
-    };
-
-    for (const key in routeArgs) {
-      const { index, data, pipes } = routeArgs[key];
-      const [paramtype, paramIndex] = key.split(":").map(Number);
-
-      switch (paramtype) {
-        case RouteParamtypes.BODY:
-          params.body = { index, data, pipes };
-          break;
-        case RouteParamtypes.QUERY:
-          params.query.push({ index, data, pipes });
-          break;
-        case RouteParamtypes.PARAM:
-          params.param.push({ index, data, pipes });
-          break;
-        case RouteParamtypes.HEADERS:
-          params.headers.push({ index, data, pipes });
-          break;
-      }
-    }
-
-    return params;
-  }
-
-  private getHttpMethod(method: number): string {
-    const methods = [
-      "GET",
-      "POST",
-      "PUT",
-      "DELETE",
-      "PATCH",
-      "OPTIONS",
-      "HEAD",
-    ];
-    return methods[method] || "GET";
-  }
-
-  private async syncWithPostman(controllerRoutes: Record<string, any[]>) {
+  async syncWithPostman(controllerRoutes: Record<string, any[]>) {
     try {
       this.logger.log("Starting Postman sync...");
 
@@ -165,6 +33,7 @@ export class PostmanSyncService implements OnModuleInit {
       this.logger.log("Successfully synced routes with Postman collection");
     } catch (error) {
       this.logger.error("Failed to sync routes with Postman", error);
+      throw error;
     }
   }
 
