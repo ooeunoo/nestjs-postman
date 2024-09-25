@@ -1,11 +1,18 @@
-import { DynamicModule, Global, Module } from "@nestjs/common";
-import { DiscoveryModule, Reflector } from "@nestjs/core";
+import { DynamicModule, Global, Module, OnModuleInit } from "@nestjs/common";
+import { ModuleRef, Reflector } from "@nestjs/core";
 import { PostmanConfig } from "./interfaces/postman-config.interface";
 import { PostmanSyncService } from "./services/postman-sync.service";
 
 @Global()
 @Module({})
-export class NestjsPostmanModule {
+export class NestjsPostmanModule implements OnModuleInit {
+  constructor(private moduleRef: ModuleRef) {}
+
+  onModuleInit() {
+    const postmanSyncService = this.moduleRef.get(PostmanSyncService);
+    postmanSyncService.onModuleInit();
+  }
+
   static forRoot(config: PostmanConfig): DynamicModule {
     return this.createDynamicModule({
       useFactory: () => config,
@@ -27,7 +34,7 @@ export class NestjsPostmanModule {
   }): DynamicModule {
     return {
       module: NestjsPostmanModule,
-      imports: [DiscoveryModule, ...(options.imports || [])],
+      imports: [...(options.imports || [])],
       providers: [
         {
           provide: "POSTMAN_CONFIG",

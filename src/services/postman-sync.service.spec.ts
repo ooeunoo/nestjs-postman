@@ -38,7 +38,7 @@ class WalletController {
 }
 
 const apiKey =
-  "PMAK-66f3b88626e82a0001963c43-c0535bbc783ebe3fa609874ccb518f4056";
+  "PMAK-66f3bf2f29254f0001f9d744-32599dc17f69d4eec701dcead417b752e7";
 const collectionId = "25577466-4bb8ee87-1794-4b0e-9994-eb685fcc129d";
 
 describe("PostmanSyncService Integration", () => {

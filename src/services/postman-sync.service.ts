@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { DiscoveryService, MetadataScanner, Reflector } from "@nestjs/core";
+import { ModulesContainer, Reflector } from "@nestjs/core";
 import axios from "axios";
 import { SYNC_WITH_POSTMAN_KEY } from "../decorators/sync-with-postman.decorator";
 import { PostmanConfig } from "../interfaces/postman-config.interface";
@@ -9,8 +9,7 @@ export class PostmanSyncService implements OnModuleInit {
   private readonly logger = new Logger(PostmanSyncService.name);
 
   constructor(
-    private readonly discoveryService: DiscoveryService,
-    private readonly metadataScanner: MetadataScanner,
+    private readonly modulesContainer: ModulesContainer,
     private readonly reflector: Reflector,
     @Inject("POSTMAN_CONFIG") private readonly config: PostmanConfig
   ) {}
@@ -32,20 +31,23 @@ export class PostmanSyncService implements OnModuleInit {
     }
   }
   private async getControllerRoutes(): Promise<Record<string, any[]>> {
-    const controllers = this.discoveryService.getControllers();
     const controllerRoutes: Record<string, any[]> = {};
 
-    for (const controller of controllers) {
-      if (!this.shouldSyncController(controller)) continue;
+    this.modulesContainer.forEach((module) => {
+      const controllers = module.controllers;
+      controllers.forEach((controller) => {
+        const instance = controller.instance;
+        if (!instance || !this.shouldSyncController(controller)) return;
 
-      const controllerName = controller.instance.constructor.name;
-      const basePath = this.getControllerBasePath(controller);
-      const routes = this.scanControllerMethods(controller, basePath);
+        const controllerName = instance.constructor.name;
+        const basePath = this.getControllerBasePath(controller);
+        const routes = this.scanControllerMethods(instance, basePath);
 
-      if (routes.length > 0) {
-        controllerRoutes[basePath || controllerName] = routes;
-      }
-    }
+        if (routes.length > 0) {
+          controllerRoutes[basePath || controllerName] = routes;
+        }
+      });
+    });
 
     return controllerRoutes;
   }
@@ -60,32 +62,30 @@ export class PostmanSyncService implements OnModuleInit {
   private getControllerBasePath(controller: any): string {
     return Reflect.getMetadata("path", controller.instance.constructor) || "";
   }
-  private scanControllerMethods(controller: any, basePath: string): any[] {
-    const routes = [];
-    const instance = controller.instance;
-    const prototype = Object.getPrototypeOf(instance);
 
-    this.metadataScanner.scanFromPrototype(
-      instance,
-      prototype,
-      (methodKey: string) => {
-        const method = Reflect.getMetadata("method", instance[methodKey]);
-        const path = Reflect.getMetadata("path", instance[methodKey]);
-        if (method !== undefined) {
-          routes.push({
-            method: this.getHttpMethod(method),
-            path: `/${basePath}/${path || ""}`
-              .replace(/\/+/g, "/")
-              .replace(/\/$/, ""),
-            name: methodKey,
-          });
-        }
-      }
+  private scanControllerMethods(instance: any, basePath: string): any[] {
+    const routes = [];
+    const prototype = Object.getPrototypeOf(instance);
+    const methodNames = Object.getOwnPropertyNames(prototype).filter(
+      (prop) => prop !== "constructor" && typeof prototype[prop] === "function"
     );
+
+    for (const methodName of methodNames) {
+      const method = Reflect.getMetadata("method", instance[methodName]);
+      const path = Reflect.getMetadata("path", instance[methodName]);
+      if (method !== undefined) {
+        routes.push({
+          method: this.getHttpMethod(method),
+          path: `/${basePath}/${path || ""}`
+            .replace(/\/+/g, "/")
+            .replace(/\/$/, ""),
+          name: methodName,
+        });
+      }
+    }
 
     return routes;
   }
-
   private getHttpMethod(method: number): string {
     const methods = [
       "GET",
