@@ -1,7 +1,7 @@
 import { Controller, Delete, Get, Post, Put } from "@nestjs/common";
-import { DiscoveryModule } from "@nestjs/core";
 import { Test, TestingModule } from "@nestjs/testing";
 import { SyncWithPostman } from "../decorators/sync-with-postman.decorator";
+import { NestjsPostmanModule } from "../nestjs-postman.module";
 import { PostmanSyncService } from "./postman-sync.service";
 
 // Mock Controller
@@ -30,34 +30,28 @@ class WalletController {
   @Post()
   createUser() {}
 
-  @Put(":id")
+  @Put(":ids")
   updateUser() {}
 
   @Delete(":id")
   deleteUser() {}
 }
 
-const apiKey =
-  "PMAK-66d7bb876c71e90001fc5f11-38820cf94f8197b64933efb4d5961b8af9";
-const collectionId = "25577466-fe4c70db-7257-4a12-ba43-cf8e5195b17c";
+const apiKey = "";
+const collectionId = "";
 
 describe("PostmanSyncService Integration", () => {
   let service: PostmanSyncService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      imports: [DiscoveryModule],
-      controllers: [UserController, WalletController],
-      providers: [
-        PostmanSyncService,
-        {
-          provide: "POSTMAN_CONFIG",
-          useValue: {
-            apiKey: apiKey,
-            collectionId: collectionId,
-          },
-        },
+      imports: [
+        NestjsPostmanModule.forRoot({
+          apiKey,
+          collectionId,
+        }),
       ],
+      controllers: [UserController, WalletController],
     }).compile();
 
     service = module.get<PostmanSyncService>(PostmanSyncService);

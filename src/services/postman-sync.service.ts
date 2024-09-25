@@ -174,6 +174,13 @@ export class PostmanSyncService implements OnModuleInit {
 
       const folderItems = updatedItems[folderIndex].item;
 
+      // Mark all existing items as potentially removed
+      folderItems.forEach((item) => {
+        if (!item.name.endsWith("(REMOVED)")) {
+          item.name += " (REMOVED)";
+        }
+      });
+
       routes.forEach((route) => {
         const existingItemIndex = folderItems.findIndex(
           (item) =>
@@ -181,28 +188,16 @@ export class PostmanSyncService implements OnModuleInit {
             item.request?.method === route.method.toUpperCase()
         );
 
-        const newItem = this.createNewItem(route);
-
-        if (existingItemIndex !== -1) {
-          // Update existing item
-          folderItems[existingItemIndex] = {
-            ...folderItems[existingItemIndex],
-            ...newItem,
-          };
-        } else {
+        if (existingItemIndex === -1) {
           // Add new item
-          folderItems.push(newItem);
+          folderItems.push(this.createNewItem(route));
+        } else {
+          // Update existing item: remove '(REMOVED)' mark if present
+          folderItems[existingItemIndex].name = folderItems[
+            existingItemIndex
+          ].name.replace(" (REMOVED)", "");
         }
       });
-
-      // Remove items that are no longer in routes
-      updatedItems[folderIndex].item = folderItems.filter((item) =>
-        routes.some(
-          (route) =>
-            item.request?.url?.raw === `{{baseUrl}}${route.path}` &&
-            item.request?.method === route.method.toUpperCase()
-        )
-      );
     }
 
     return updatedItems;
