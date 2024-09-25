@@ -37,8 +37,9 @@ class WalletController {
   deleteUser() {}
 }
 
-const apiKey = "";
-const collectionId = "";
+const apiKey =
+  "PMAK-66f3b88626e82a0001963c43-c0535bbc783ebe3fa609874ccb518f4056";
+const collectionId = "25577466-4bb8ee87-1794-4b0e-9994-eb685fcc129d";
 
 describe("PostmanSyncService Integration", () => {
   let service: PostmanSyncService;

@@ -1,5 +1,5 @@
 import { DynamicModule, Global, Module } from "@nestjs/common";
-import { DiscoveryModule } from "@nestjs/core";
+import { DiscoveryModule, Reflector } from "@nestjs/core";
 import { PostmanConfig } from "./interfaces/postman-config.interface";
 import { PostmanSyncService } from "./services/postman-sync.service";
 
@@ -7,18 +7,9 @@ import { PostmanSyncService } from "./services/postman-sync.service";
 @Module({})
 export class NestjsPostmanModule {
   static forRoot(config: PostmanConfig): DynamicModule {
-    return {
-      module: NestjsPostmanModule,
-      imports: [DiscoveryModule],
-      providers: [
-        {
-          provide: "POSTMAN_CONFIG",
-          useValue: config,
-        },
-        PostmanSyncService,
-      ],
-      exports: [PostmanSyncService],
-    };
+    return this.createDynamicModule({
+      useFactory: () => config,
+    });
   }
 
   static forRootAsync(options: {
@@ -26,9 +17,17 @@ export class NestjsPostmanModule {
     useFactory: (...args: any[]) => Promise<PostmanConfig> | PostmanConfig;
     inject?: any[];
   }): DynamicModule {
+    return this.createDynamicModule(options);
+  }
+
+  private static createDynamicModule(options: {
+    imports?: any[];
+    useFactory: (...args: any[]) => Promise<PostmanConfig> | PostmanConfig;
+    inject?: any[];
+  }): DynamicModule {
     return {
       module: NestjsPostmanModule,
-      imports: [...(options.imports || []), DiscoveryModule],
+      imports: [DiscoveryModule, ...(options.imports || [])],
       providers: [
         {
           provide: "POSTMAN_CONFIG",
@@ -36,6 +35,7 @@ export class NestjsPostmanModule {
           inject: options.inject || [],
         },
         PostmanSyncService,
+        Reflector,
       ],
       exports: [PostmanSyncService],
     };
