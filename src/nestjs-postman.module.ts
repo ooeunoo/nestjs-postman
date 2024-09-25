@@ -1,5 +1,5 @@
 import { DynamicModule, Global, Module } from "@nestjs/common";
-import { DiscoveryModule, ModulesContainer } from "@nestjs/core";
+import { DiscoveryModule, ModulesContainer, Reflector } from "@nestjs/core";
 import { PostmanConfig } from "./interfaces/postman-config.interface";
 import { PostmanSyncService } from "./services/postman-sync.service";
 
@@ -39,6 +39,7 @@ export class NestjsPostmanModule {
           provide: ModulesContainer,
           useFactory: () => new ModulesContainer(),
         },
+        Reflector,
       ],
       exports: [PostmanSyncService],
     };
